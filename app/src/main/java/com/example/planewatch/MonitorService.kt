@@ -42,7 +42,7 @@ class MonitorService : Service() {
             loop = scope.launch {
                 while (isActive) {
                     pollAll()
-                    delay(POLL_INTERVAL_MS)
+                    delay(Store.intervalSeconds.value * 1_000L)
                 }
             }
         }
@@ -119,9 +119,5 @@ class MonitorService : Service() {
         s.altitudeFt?.let { parts += "%,d ft".format(it) }
         s.speedKt?.let { parts += "$it kt" }
         return if (parts.isEmpty()) "Airborne" else parts.joinToString(" · ")
-    }
-
-    companion object {
-        private const val POLL_INTERVAL_MS = 60_000L
     }
 }

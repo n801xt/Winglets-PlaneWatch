@@ -13,6 +13,11 @@ object Store {
     val monitoring = MutableStateFlow(false)
     val notifyLanding = MutableStateFlow(true)
 
+    /** 0 = follow system, 1 = light, 2 = dark */
+    val themeMode = MutableStateFlow(0)
+    val iconColor = MutableStateFlow(AppIcon.BLUE.name)
+    val intervalSeconds = MutableStateFlow(60)
+
     @Synchronized
     fun init(context: Context) {
         if (::prefs.isInitialized) return
@@ -21,6 +26,9 @@ object Store {
             .split(",").filter { it.isNotBlank() }
         monitoring.value = prefs.getBoolean("monitoring", false)
         notifyLanding.value = prefs.getBoolean("notifyLanding", true)
+        themeMode.value = prefs.getInt("themeMode", 0)
+        iconColor.value = prefs.getString("iconColor", AppIcon.BLUE.name) ?: AppIcon.BLUE.name
+        intervalSeconds.value = prefs.getInt("intervalSeconds", 60)
     }
 
     fun normalize(raw: String): String = raw.trim().uppercase().replace(" ", "")
@@ -53,6 +61,21 @@ object Store {
     fun setNotifyLanding(on: Boolean) {
         notifyLanding.value = on
         prefs.edit().putBoolean("notifyLanding", on).apply()
+    }
+
+    fun setThemeMode(mode: Int) {
+        themeMode.value = mode
+        prefs.edit().putInt("themeMode", mode).apply()
+    }
+
+    fun setIconColor(name: String) {
+        iconColor.value = name
+        prefs.edit().putString("iconColor", name).apply()
+    }
+
+    fun setIntervalSeconds(seconds: Int) {
+        intervalSeconds.value = seconds
+        prefs.edit().putInt("intervalSeconds", seconds).apply()
     }
 
     fun wasAirborne(reg: String): Boolean = prefs.getBoolean("air_$reg", false)
