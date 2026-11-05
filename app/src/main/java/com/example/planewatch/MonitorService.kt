@@ -21,6 +21,7 @@ class MonitorService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var loop: Job? = null
+    private val failures = mutableMapOf<String, Int>()
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -53,7 +54,7 @@ class MonitorService : Service() {
         super.onDestroy()
     }
 
-    private fun pollAll() {
+    private suspend fun pollAll() {
         val regs = Store.registrations.value
         // Refresh the "Watching N aircraft" text as registrations change.
         androidx.core.app.NotificationManagerCompat.from(this).let { nm ->
@@ -67,6 +68,8 @@ class MonitorService : Service() {
         }
         for (reg in regs) {
             checkOne(reg)
+            // Stay well under the free feeds' rate limits when watching several aircraft.
+            delay(1_500)
         }
     }
 
@@ -76,9 +79,18 @@ class MonitorService : Service() {
 
         if (result.isFailure) {
             // Keep the previous airborne state so a flaky connection can't trigger false alerts.
-            Store.setStatus(reg, "Couldn't reach the data feed (checked $time)")
+            val fails = (failures[reg] ?: 0) + 1
+            failures[reg] = fails
+            // One-off blips are normal on free feeds; only surface the error if it keeps happening.
+            if (fails >= 3) {
+                Store.setStatus(
+                    reg,
+                    "Feed problem: ${result.exceptionOrNull()?.message.orEmpty()} (checked $time)",
+                )
+            }
             return
         }
+        failures[reg] = 0
 
         val sighting = result.getOrNull()
         val airborneNow = sighting?.airborne == true
