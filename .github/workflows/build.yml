@@ -10,6 +10,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Show repo layout
+        run: find . -path ./.git -prune -o -type f -print | sort | head -150
+
+      - name: Locate project folder
+        id: proj
+        run: |
+          marker=$(find . -path ./.git -prune -o -name RadarScreen.kt -print | head -n1)
+          if [ -n "$marker" ]; then
+            dir="${marker%/app/src/main/java/*}"
+          else
+            s=$(find . -path ./.git -prune -o -name settings.gradle.kts -print | head -n1)
+            dir=$(dirname "$s")
+          fi
+          echo "Project folder: $dir"
+          if [ ! -f "$dir/settings.gradle.kts" ] || [ ! -f "$dir/app/build.gradle.kts" ]; then
+            echo "::error::Expected settings.gradle.kts and app/build.gradle.kts in '$dir'. Check the repo layout above."
+            exit 1
+          fi
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -20,9 +40,10 @@ jobs:
           gradle-version: 8.7
 
       - name: Build debug APK
+        working-directory: ${{ steps.proj.outputs.dir }}
         run: gradle assembleDebug --no-daemon
 
       - uses: actions/upload-artifact@v4
         with:
           name: PlaneWatch-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: ${{ steps.proj.outputs.dir }}/app/build/outputs/apk/debug/app-debug.apk
